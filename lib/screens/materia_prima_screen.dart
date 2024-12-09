@@ -20,6 +20,7 @@ class _MateriaPrimaScreenState extends State<MateriaPrimaScreen> {
     },
   );
 
+
   final TextEditingController _searchController = TextEditingController();
   int _itemsPerPage = 4;
   int _currentPage = 1;
@@ -68,48 +69,62 @@ class _MateriaPrimaScreenState extends State<MateriaPrimaScreen> {
     final List<Map<String, dynamic>> currentPageItems = _getItemsToDisplay();
 
     return Scaffold(
-      appBar: AppBar(
+        appBar: AppBar(
         title: const Text('Gestión de Materia Prima'),
-        backgroundColor: Colors.orange.shade700,
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: _activarBusqueda,
-                    child: TextField(
-                      controller: _searchController,
-                      enabled: _isSearchActive,
-                      onSubmitted: _buscarMateriaPrima,
-                      decoration: InputDecoration(
-                        hintText: 'Buscar materia prima',
-                        prefixIcon: Icon(Icons.search, color: Colors.grey),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30.0),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: EdgeInsets.symmetric(
-                            vertical: 14.0, horizontal: 20.0),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30.0),
-                          borderSide:
-                          BorderSide(color: Colors.orange.shade700, width: 1.5),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30.0),
-                          borderSide:
-                          BorderSide(color: Colors.orange.shade900, width: 2.0),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+          backgroundColor: Color(0xFFF4A259),
+          elevation: 5,
+          foregroundColor: Colors.white,
+
+    ),
+    body: Container(
+    decoration: BoxDecoration(
+    image: DecorationImage(
+    image: AssetImage("assets/images/Fondosregistros.png"), // Imagen de fondo local
+    fit: BoxFit.cover,
+    colorFilter: ColorFilter.mode(
+    Colors.black.withOpacity(0.3),
+    BlendMode.darken,
+    ),
+    ),
+    ),
+    child: Column(
+    children: [
+    Padding(
+    padding: const EdgeInsets.all(16.0),
+    child: Row(
+    children: [
+    Expanded(
+    child: GestureDetector(
+    onTap: _activarBusqueda,
+    child: TextField(
+    controller: _searchController,
+    enabled: _isSearchActive,
+    onSubmitted: _buscarMateriaPrima,
+    decoration: InputDecoration(
+    hintText: 'Buscar materia prima',
+    prefixIcon: Icon(Icons.search, color: Colors.grey),
+    filled: true,
+    fillColor: Colors.white,
+    border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(30.0),
+    borderSide: BorderSide.none,
+    ),
+    contentPadding: EdgeInsets.symmetric(
+    vertical: 14.0, horizontal: 20.0),
+    enabledBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(30.0),
+    borderSide:
+    BorderSide(color: Colors.orange.shade700, width: 1.5),
+    ),
+    focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(30.0),
+    borderSide:
+    BorderSide(color: Colors.orange.shade900, width: 2.0),
+    ),
+    ),
+    ),
+    ),
+    ),
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
                   onPressed: () => _mostrarFormulario(),
@@ -284,8 +299,10 @@ class _MateriaPrimaScreenState extends State<MateriaPrimaScreen> {
           ),
         ],
       ),
+    ),
     );
   }
+
 
   void _mostrarFormulario({Map<String, dynamic>? materiaPrima}) {
     final _nombreController = TextEditingController(text: materiaPrima?['nombre'] ?? '');

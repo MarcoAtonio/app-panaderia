@@ -13,8 +13,10 @@ class _ProductosScreenState extends State<ProductosScreen> {
       "nombre": "Producto ${index + 1}",
       "precio": (index + 1) * 1.5,
       "stock": (index + 1) * 10,
+      "imagen": "https://via.placeholder.com/150?text=Producto+${index + 1}",
     },
   );
+
 
   final TextEditingController _searchController = TextEditingController();
   int _currentPage = 1;
@@ -40,10 +42,9 @@ class _ProductosScreenState extends State<ProductosScreen> {
 
   void _mostrarFormulario({Map<String, dynamic>? producto}) {
     final _nombreController = TextEditingController(text: producto?['nombre'] ?? '');
-    final _precioController = TextEditingController(
-        text: producto != null ? producto['precio'].toString() : '');
-    final _stockController = TextEditingController(
-        text: producto != null ? producto['stock'].toString() : '');
+    final _precioController = TextEditingController(text: producto != null ? producto['precio'].toString() : '');
+    final _stockController = TextEditingController(text: producto != null ? producto['stock'].toString() : '');
+    final _imagenController = TextEditingController(text: producto?['imagen'] ?? '');
 
     showDialog(
       context: context,
@@ -69,6 +70,11 @@ class _ProductosScreenState extends State<ProductosScreen> {
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: 'Stock'),
               ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _imagenController,
+                decoration: const InputDecoration(labelText: 'URL de Imagen'),
+              ),
             ],
           ),
           actions: [
@@ -78,21 +84,29 @@ class _ProductosScreenState extends State<ProductosScreen> {
             ),
             ElevatedButton(
               onPressed: () {
+                // Validación de la URL de la imagen
+                if (_imagenController.text.isNotEmpty && !_isValidImageUrl(_imagenController.text)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Por favor, ingrese una URL de imagen válida')),
+                  );
+                  return;
+                }
+
                 setState(() {
                   if (producto == null) {
                     final nuevoProducto = {
-                      "id": _productos.isNotEmpty
-                          ? _productos.last['id'] + 1
-                          : 1,
+                      "id": _productos.isNotEmpty ? _productos.last['id'] + 1 : 1,
                       "nombre": _nombreController.text,
                       "precio": double.parse(_precioController.text),
                       "stock": int.parse(_stockController.text),
+                      "imagen": _imagenController.text,
                     };
                     _productos.add(nuevoProducto);
                   } else {
                     producto['nombre'] = _nombreController.text;
                     producto['precio'] = double.parse(_precioController.text);
                     producto['stock'] = int.parse(_stockController.text);
+                    producto['imagen'] = _imagenController.text;
                   }
                 });
                 Navigator.of(context).pop();
@@ -103,6 +117,11 @@ class _ProductosScreenState extends State<ProductosScreen> {
         );
       },
     );
+  }
+  // Validación de URL (una verificación simple para URLs de imágenes)
+  bool _isValidImageUrl(String url) {
+    final RegExp regex = RegExp(r"^(https?|ftp)://[^\s/$.?#].[^\s]*$");
+    return regex.hasMatch(url) && (url.endsWith('.png') || url.endsWith('.jpg') || url.endsWith('.jpeg'));
   }
 
   void _eliminarProducto(Map<String, dynamic> producto) {
@@ -140,11 +159,23 @@ class _ProductosScreenState extends State<ProductosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+        appBar: AppBar(
         title: const Text('Gestión de Productos'),
-        backgroundColor: Colors.orange.shade700,
-      ),
-      body: Padding(
+          backgroundColor: Color(0xFFF4A259),
+          elevation: 5,
+          foregroundColor: Colors.white,
+
+    ),
+
+    body: Container(
+    // Agregar una imagen de fondo desde los assets
+    decoration: BoxDecoration(
+    image: DecorationImage(
+    image: AssetImage('assets/images/Fondosregistros.png'), // Cargar desde los assets
+    fit: BoxFit.cover, // Ajusta la imagen al tamaño del contenedor
+    ),
+    ),
+
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
@@ -199,14 +230,26 @@ class _ProductosScreenState extends State<ProductosScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
-                            height: 110, // Aumento la altura de la imagen
+                            height: 110,
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade300,
                               borderRadius: BorderRadius.circular(8),
+                              color: Colors.grey.shade300,
                             ),
-                            child: const Center(
+
+                            child: producto['imagen'] != null && producto['imagen'].isNotEmpty
+                                ? ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                producto['imagen'],
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Center(child: Text('Error al cargar imagen'));
+                                },
+                              ),
+                            )
+                                : const Center(
                               child: Text(
-                                'Imagen aquí',
+                                'Sin imagen',
                                 style: TextStyle(color: Colors.black54),
                               ),
                             ),

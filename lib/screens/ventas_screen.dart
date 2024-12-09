@@ -15,77 +15,301 @@ class _VentasScreenState extends State<VentasScreen> {
     },
   );
 
+
+  List<Map<String, dynamic>> _filteredVentas = []; // Lista para ventas filtradas
   final TextEditingController _searchController = TextEditingController();
   int _currentPage = 1;
   int _itemsPerPage = 3;
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredVentas = _ventas; // Inicializamos la lista filtrada con todas las ventas
+    _searchController.addListener(_filterVentas); // Agregamos el listener para la búsqueda
+  }
+
+  // Filtra las ventas según el texto de búsqueda
+  void _filterVentas() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredVentas = _ventas.where((venta) {
+        return venta['concepto'].toLowerCase().contains(query) ||
+            venta['id'].toString().contains(query);
+      }).toList();
+    });
+  }
 
   // Obtener ventas paginadas
   List<Map<String, dynamic>> get _paginatedVentas {
     final startIndex = (_currentPage - 1) * _itemsPerPage;
     final endIndex = startIndex + _itemsPerPage;
-    return _ventas.sublist(
-        startIndex, endIndex > _ventas.length ? _ventas.length : endIndex);
+    return _filteredVentas.sublist(
+        startIndex, endIndex > _filteredVentas.length ? _filteredVentas.length : endIndex);
   }
 
+
   void _mostrarFormulario({Map<String, dynamic>? venta}) {
-    final TextEditingController _conceptoController = TextEditingController(
-        text: venta != null ? venta['concepto'] : '');
-    final TextEditingController _totalController = TextEditingController(
-        text: venta != null ? venta['total'].toString() : '');
+    final TextEditingController _descripcionController = TextEditingController();
+    final TextEditingController _cantidadController = TextEditingController();
+    final TextEditingController _reciboController = TextEditingController();
+    double _cambio = 0.0;
+
+    // Simulación de productos para el dropdown
+    final List<Map<String, dynamic>> _productos = [
+      {"nombre": "Pan Tostado", "precio": 225.0, "stock": 100},
+      {"nombre": "Leche Entera", "precio": 50.0, "stock": 200},
+    ];
+    String? _productoSeleccionado;
+    List<Map<String, dynamic>> _detalleVenta = [];
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text(venta == null ? 'Agregar Venta' : 'Editar Venta'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _conceptoController,
-                decoration: const InputDecoration(labelText: 'Concepto'),
-              ),
-              TextField(
-                controller: _totalController,
-                decoration: const InputDecoration(labelText: 'Total'),
-                keyboardType: TextInputType.number,
-              ),
-            ],
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (_conceptoController.text.isNotEmpty &&
-                    _totalController.text.isNotEmpty) {
-                  setState(() {
-                    if (venta == null) {
-                      final nuevaVenta = {
-                        "id": _ventas.isNotEmpty
-                            ? _ventas.last['id'] + 1
-                            : 1,
-                        "concepto": _conceptoController.text,
-                        "total": double.parse(_totalController.text),
-                      };
-                      _ventas.add(nuevaVenta);
-                    } else {
-                      venta['concepto'] = _conceptoController.text;
-                      venta['total'] = double.parse(_totalController.text);
-                    }
-                  });
-                  Navigator.of(context).pop();
-                }
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              double _calcularTotal() {
+                return _detalleVenta.fold(
+                    0, (sum, item) => sum + (item['cantidad'] * item['precio']));
+              }
+
+              return GestureDetector(
+                onTap: () => FocusScope.of(context).unfocus(),
+                child: Container(
+                  height: MediaQuery.of(context).size.height * 0.8, // Tamaño fijo
+                  padding: const EdgeInsets.all(20),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          "Detalles de la Venta",
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.brown,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        // Campo de descripción
+                        TextField(
+                          controller: _descripcionController,
+                          decoration: const InputDecoration(
+                            labelText: "Descripción",
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Campo Producto
+                        DropdownButtonFormField<String>(
+                          value: _productoSeleccionado,
+                          items: _productos
+                              .map((producto) => DropdownMenuItem<String>(
+                            value: producto['nombre'],
+                            child: Text(
+                              "${producto['nombre']} - \$${producto['precio']} - ${producto['stock']} Existe",
+                            ),
+                          ))
+                              .toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _productoSeleccionado = value;
+                            });
+                          },
+                          decoration: const InputDecoration(
+                            labelText: "Producto",
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Campo Cantidad
+                        TextField(
+                          controller: _cantidadController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: "Cantidad",
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Botón Agregar
+                        ElevatedButton(
+                          onPressed: () {
+                            if (_productoSeleccionado != null &&
+                                _cantidadController.text.isNotEmpty) {
+                              final cantidad =
+                                  int.tryParse(_cantidadController.text) ?? 0;
+                              final producto = _productos.firstWhere(
+                                      (p) => p['nombre'] == _productoSeleccionado);
+
+                              if (cantidad > producto['stock']) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Cantidad excede el stock disponible (${producto['stock']})'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+
+                              setState(() {
+                                _detalleVenta.add({
+                                  "producto": producto['nombre'],
+                                  "cantidad": cantidad,
+                                  "precio": producto['precio'],
+                                  "subtotal": cantidad * producto['precio'],
+                                });
+                                _cantidadController.clear();
+                                _productoSeleccionado = null;
+                              });
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                          ),
+                          child: const Text("Agregar"),
+                        ),
+                        const SizedBox(height: 16),
+                        // Tabla de detalle de venta
+                        ListView(
+                          shrinkWrap: true,
+                          children: _detalleVenta.map((item) {
+                            return ListTile(
+                              title: Text(item['producto']),
+                              subtitle: Text(
+                                  "Cantidad: ${item['cantidad']}, Precio Unitario: \$${item['precio']}, Subtotal: \$${item['subtotal']}"),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () {
+                                  setState(() {
+                                    _detalleVenta.remove(item);
+                                  });
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 16),
+                        // Total
+                        Text(
+                          "Total: \$${_calcularTotal().toStringAsFixed(2)}",
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Campos Recibo y Cambio
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _reciboController,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  labelText: "Recibo",
+                                  border: OutlineInputBorder(),
+                                ),
+                                onChanged: (value) {
+                                  final recibo = double.tryParse(value) ?? 0;
+                                  setState(() {
+                                    _cambio = recibo - _calcularTotal();
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: TextField(
+                                readOnly: true,
+                                decoration: InputDecoration(
+                                  labelText: "Cambio",
+                                  border: const OutlineInputBorder(),
+                                  hintText: "\$${_cambio.toStringAsFixed(2)}",
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // Botones Guardar y Cancelar
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            ElevatedButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                              ),
+                              child: const Text("Cancelar"),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                // Validar campos antes de guardar
+                                if (_detalleVenta.isNotEmpty && _descripcionController.text.isNotEmpty) {
+                                  setState(() {
+                                    // Agregar los detalles de la venta a la lista principal
+                                    final nuevaVenta = {
+                                      "id": _ventas.isNotEmpty ? _ventas.last['id'] + 1 : 1,
+                                      "concepto": _descripcionController.text,
+                                      "total": _detalleVenta.fold<double>(
+                                        0.0,
+                                            (double sum, Map<String, dynamic> item) =>
+                                        sum + (item['cantidad'] * item['precio']),
+                                      ),
+                                    };
+                                    _ventas.add(nuevaVenta);
+                                    _filteredVentas = _ventas; // Actualizar lista filtrada
+                                  });
+
+                                  // Mostrar un mensaje de éxito
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Venta guardada correctamente'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+
+                                  // Cerrar el modal
+                                  Navigator.of(context).pop();
+                                } else {
+                                  // Mostrar un mensaje si faltan datos
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Por favor, completa todos los campos antes de guardar.'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                              ),
+                              child: const Text("Guardar Venta"),
+                            ),
+
+
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
         );
       },
     );
   }
+
+
+
 
   void _eliminarVenta(Map<String, dynamic> venta) {
     showDialog(
@@ -109,6 +333,99 @@ class _VentasScreenState extends State<VentasScreen> {
               child: const Text('Eliminar'),
             ),
           ],
+        );
+      },
+    );
+  }
+  void _mostrarDetallesVenta(Map<String, dynamic> venta) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Detalles de la Venta",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.brown,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "ID:",
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      "${venta['id']}",
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Concepto:",
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      "${venta['concepto']}",
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Total:",
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      "\$${venta['total'].toStringAsFixed(2)}",
+                      style: const TextStyle(fontSize: 18, color: Colors.green),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  ),
+                  child: const Text(
+                    "Cerrar",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -209,33 +526,49 @@ class _VentasScreenState extends State<VentasScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+        appBar: AppBar(
         title: const Text('Gestión de Ventas'),
-        backgroundColor: Colors.orange.shade700,
+          backgroundColor: Color(0xFFF4A259),
+          elevation: 5,
+          foregroundColor: Colors.white,
+
+    ),
+    body: Container(
+    decoration: BoxDecoration(
+    image: DecorationImage(
+    image: AssetImage("assets/images/Fondosregistros.png"), // Imagen de fondo local
+    fit: BoxFit.cover,
+    colorFilter: ColorFilter.mode(
+    Colors.black.withOpacity(0.3), // Efecto de oscuridad sobre el fondo
+    BlendMode.darken,
+    ),
+    ),
+    ),
+    child: Padding(
+    padding: const EdgeInsets.all(16.0),
+    child: Column(
+    children: [
+    // Barra de búsqueda y opciones superiores
+    Row(
+    children: [
+      Expanded(
+        flex: 4,
+        child: TextField(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: 'Buscar por ID o Concepto',
+            prefixIcon: Icon(Icons.search),
+            filled: true,  // Agrega esta línea para permitir el fondo
+            fillColor: Colors.white,  // Color blanco de fondo
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+          ),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Barra de búsqueda y opciones superiores
-            Row(
-              children: [
-                Expanded(
-                  flex: 4,
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Buscar por ID o Concepto',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          vertical: 12.0, horizontal: 16.0),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
+
+      const SizedBox(width: 16),
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -483,6 +816,7 @@ class _VentasScreenState extends State<VentasScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 
